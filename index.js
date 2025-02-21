@@ -8,8 +8,10 @@ const port = process.env.PORT || 7000;
 
 // Middleware
 app.use(express.json());
-app.use(cors());
-
+app.use(cors({
+  origin: ['http://localhost:5173', 'https://scic-assignment-9dcaa.web.app'],
+  credentials: true,
+}))
 // MongoDB Connection URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.8oded.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -80,8 +82,30 @@ app.get("/tasks", async (req, res) => {
   }
 });
 
+// ✅ Get a single task by ID
+app.get("/tasks/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if id is a valid MongoDB ObjectId
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ message: "Invalid task ID format" });
+    }
+
+    const query = { _id: new ObjectId(id) };
+    const result = await taskCollection.findOne(query);
+
+    if (!result) {
+      return res.status(404).send({ message: "Task not found" });
+    }
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ message: "Server error", error: error.message });
+  }
+});
 // ✅ Get tasks by user email
-app.get("/tasks/:email", async (req, res) => {
+app.get("/tasks/user/:email", async (req, res) => {
   try {
     const email = req.params.email;
     const result = await taskCollection.find({ email }).toArray();
@@ -91,20 +115,10 @@ app.get("/tasks/:email", async (req, res) => {
   }
 });
 
-// ✅ Get a single task by ID
-app.get("/tasks/:id", async (req, res) => {
-  try {
-    const id = new ObjectId(req.params.id);
-    const result = await taskCollection.findOne({ _id: id });
-    if (!result) return res.status(404).send({ message: "Task not found" });
-    res.send(result);
-  } catch (error) {
-    res.status(500).send({ message: "Error fetching task", error });
-  }
-});
+
 
 // ✅ Delete a task by ID
-app.delete("/tasks/:id", async (req, res) => {
+app.delete("/tasks/delete/:id", async (req, res) => {
   try {
     const id = new ObjectId(req.params.id);
     const result = await taskCollection.deleteOne({ _id: id });
@@ -116,7 +130,7 @@ app.delete("/tasks/:id", async (req, res) => {
 });
 
 // ✅ Update task (PATCH)
-app.patch("/tasks/:id", async (req, res) => {
+app.patch("/tasks/update/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, category } = req.body;
@@ -137,7 +151,7 @@ app.patch("/tasks/:id", async (req, res) => {
 });
 
 // ✅ Update only category (PUT)
-app.put("/tasks/:id", async (req, res) => {
+app.put("/tasks/category/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { category } = req.body;
